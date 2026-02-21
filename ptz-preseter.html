@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PTZ Preseter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f12;
+    --panel: #13171e;
+    --border: #1e2730;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --text: #c8d6e5;
+    --dim: #4a5568;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  .header {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .header h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 1.2rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+  }
+
+  .header span {
+    font-size: 0.75rem;
+    color: var(--dim);
+    letter-spacing: 0.05em;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2rem;
+  }
+
+  .field {
+    margin-bottom: 1.5rem;
+  }
+
+  label {
+    display: block;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    margin-bottom: 0.5rem;
+  }
+
+  input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.95rem;
+    padding: 0.65rem 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus {
+    border-color: var(--accent);
+  }
+
+  ::placeholder {
+  color: var(--dim);
+  opacity: 1; /* Ensures correct opacity in Firefox */
+}
+
+  .url-preview {
+    margin: 1.5rem 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent2);
+    border-radius: 3px;
+    padding: 0.9rem 1rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+    word-break: break-all;
+    line-height: 1.6;
+  }
+
+  .url-preview .hl { color: var(--accent2); }
+
+  button {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    padding: 0.85rem;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  button:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  button:active { opacity: 0.8; }
+
+  .status {
+    margin-top: 1rem;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem;
+    min-height: 1.2em;
+    text-align: center;
+    transition: color 0.3s;
+  }
+
+  .status.ok { color: var(--accent); }
+  .status.err { color: var(--accent2); }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>PTZ PRESETER</h1>
+    <span>Set PTZ camera presets with ease</span>
+  </div>
+
+  <div class="panel">
+    <div class="field">
+      <label>CAMERA IP</label>
+      <input type="text" id="ip" placeholder="192.168.1.100" value="" />
+    </div>
+
+    <div class="field">
+      <label>PRESET NUMBER <span style="color:var(--dim);font-size:0.65rem">(0–89 or 100–254)</span></label>
+      <input type="number" id="pos" placeholder="1" min="0" max="254" value="" />
+    </div>
+
+    <div class="url-preview" id="preview">—</div>
+
+    <button onclick="sendCommand()">SEND COMMAND</button>
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<script>
+  const ipInput = document.getElementById('ip');
+  const posInput = document.getElementById('pos');
+  const preview = document.getElementById('preview');
+  const status = document.getElementById('status');
+
+  function buildUrl() {
+    const ip = ipInput.value.trim() || '[cameraip]';
+    const pos = posInput.value.trim() || '[position]';
+    return { url: `http://${ip}/cgi-bin/ptzctrl.cgi?ptzcmd&posset&${pos}`, ip, pos };
+  }
+
+  function updatePreview() {
+    const { url, ip, pos } = buildUrl();
+    preview.innerHTML = `http://<span class="hl">${escHtml(ip)}</span>/cgi-bin/ptzctrl.cgi?ptzcmd&posset&<span class="hl">${escHtml(pos)}</span>`;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function validPos(val) {
+    const n = parseInt(val, 10);
+    if (isNaN(n) || String(n) !== val.trim()) return false;
+    return (n >= 0 && n <= 89) || (n >= 100 && n <= 254);
+  }
+
+  ipInput.addEventListener('input', updatePreview);
+  posInput.addEventListener('input', () => {
+    const v = posInput.value.trim();
+    posInput.style.borderColor = (v === '' || validPos(v)) ? '' : 'var(--accent2)';
+    updatePreview();
+  });
+  updatePreview();
+
+  async function sendCommand() {
+    const { url, ip, pos } = buildUrl();
+    if (!ipInput.value.trim() || !posInput.value.trim()) {
+      setStatus('Fill in both fields first.', 'err');
+      return;
+    }
+    if (!validPos(pos)) {
+      setStatus('Position must be 0–89 or 100–254.', 'err');
+      return;
+    }
+    setStatus('Sending...', '');
+    try {
+      const res = await fetch(url, { mode: 'no-cors' });
+      setStatus(`Command sent → position ${pos}`, 'ok');
+    } catch (e) {
+      setStatus(`Error: ${e.message}`, 'err');
+    }
+  }
+
+  function setStatus(msg, cls) {
+    status.textContent = msg;
+    status.className = 'status ' + cls;
+  }
+</script>
+</body>
+</html>
